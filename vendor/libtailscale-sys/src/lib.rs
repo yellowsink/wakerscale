@@ -66,9 +66,6 @@ extern "C" {
     ) -> ::std::os::raw::c_int;
 }
 extern "C" {
-    pub fn tailscale_listener_close(listener: tailscale_listener) -> ::std::os::raw::c_int;
-}
-extern "C" {
     pub fn tailscale_accept(
         listener: tailscale_listener,
         conn_out: *mut tailscale_conn,
@@ -81,6 +78,12 @@ extern "C" {
         addrlen: usize,
         proxy_cred_out: *mut ::std::os::raw::c_char,
         local_api_cred_out: *mut ::std::os::raw::c_char,
+    ) -> ::std::os::raw::c_int;
+}
+extern "C" {
+    pub fn tailscale_enable_funnel_to_localhost_plaintext_http1(
+        sd: tailscale,
+        localhost_port: ::std::os::raw::c_int,
     ) -> ::std::os::raw::c_int;
 }
 extern "C" {
