@@ -14,8 +14,6 @@ dependencies = [
 [[package]]
 name = "libtailscale"
 version = "0.2.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0959c7f52d8fc5977c90e46c325da72c6f621852740780c660f06bbf0bb7b0d0"
 dependencies = [
  "libtailscale-sys",
 ]
@@ -23,8 +21,6 @@ dependencies = [
 [[package]]
 name = "libtailscale-sys"
 version = "0.2.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8b837f7248dd457b09c6b533574fdf4d23faf07eed4803ae1cef1595ae8e45ff"
 dependencies = [
  "cc",
 ]

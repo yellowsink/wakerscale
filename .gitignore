@@ -1,5 +1,2 @@
 .idea
 /target
-vendor/cc
-vendor/shlex
-vendor/libtailscale-sys/libtailscale

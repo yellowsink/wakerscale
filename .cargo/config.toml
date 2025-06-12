@@ -2,9 +2,3 @@
 target = "aarch64-unknown-linux-musl"
 # what the fuck is wrong with cargo i mean seriously what the fuck man like in what world is /bin/cc gonna successfully link an arm executable i even told you the target are you that stupid what the fuck just steal the code from the cc crate its so easy what the hell are you doing guys
 rustflags = ["-C", "linker=aarch64-linux-musl-gcc", "-C", "target-feature=+crt-static"]
-
-[source.crates-io]
-replace-with = "vendored-sources"
-
-[source.vendored-sources]
-directory = "vendor"
