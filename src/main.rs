@@ -6,12 +6,16 @@ use hyper::service::service_fn;
 use hyper::{Method, Request, Response, StatusCode};
 use hyper_util::rt::TokioIo;
 use libtailscale::Tailscale;
+use regex::Regex;
 use std::fs;
 use std::sync::LazyLock;
 
 // get allowed passwords, port number, etc
 #[derive(Facet)]
 struct Config {
+	hostname: String,
+	//iface: String,
+	controlserver: Option<String>,
 	port: usize,
 	passwords: Vec<String>,
 }
@@ -34,17 +38,21 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 async fn main_async() -> Result<(), Box<dyn std::error::Error>> {
 	let mut ts = Tailscale::new();
 	ts.set_ephemeral(true)?;
-	ts.set_control_url("https://michiscale.yellows.ink")?;
-	ts.set_hostname("milkzel-wakerscale")?;
+	ts.set_hostname(&CFG.hostname)?;
+
+	if let Some(cs) = &CFG.controlserver {
+		ts.set_control_url(cs)?;
+	}
+
 	ts.up()?;
 	let ts = ts;
 
 	// ts listener is blocking so we need a thread :(
 	let (tx, mut rx) = tokio::sync::mpsc::channel(3);
-	
+
 	let thr = std::thread::spawn(move || {
 		let listener = ts.listen("tcp", &format!(":{}", CFG.port)).unwrap();
-		
+
 		for stream in listener.incoming() {
 			match stream {
 				Ok(stream) => {
@@ -74,7 +82,9 @@ async fn main_async() -> Result<(), Box<dyn std::error::Error>> {
 			}
 		});
 	}
-	
+
+	// explicitly keep the worker thread in scope to stop us from join()ing it too early via drop
+	drop(thr);
 	Ok(())
 }
 
@@ -91,8 +101,36 @@ async fn handle(
 					*r.status_mut() = StatusCode::UNAUTHORIZED;
 					Ok(r)
 				} else {
-					// WE'RE GOOD
-					Ok(bullshit_to_200_ok("TODO: implement functionality, but you're in."))
+					// get mac address
+					let mac = req.uri().query();
+					if let Some(mac) = mac {
+						match parse_mac_address_from_query(mac) {
+							Ok(mac) => {
+								// send WOL packet
+								let packet = wake_on_lan::MagicPacket::new(&mac);
+								let res = packet.send();
+
+								if let Err(e) = res {
+									let mut r = bullshit_to_200_ok(format!("Error sending WOL packet: {e}"));
+									*r.status_mut() = StatusCode::INTERNAL_SERVER_ERROR;
+									Ok(r)
+								} else {
+									// 200 OK
+									Ok(bullshit_to_200_ok(""))
+								}
+							}
+							Err(err) => {
+								let mut r = bullshit_to_200_ok(err);
+								*r.status_mut() = StatusCode::BAD_REQUEST;
+								Ok(r)
+							}
+						}
+					}
+					else {
+						let mut r = bullshit_to_200_ok("Missing mac address, /wake?mac=XX:XX:XX:XX:XX:XX");
+						*r.status_mut() = StatusCode::BAD_REQUEST;
+						Ok(r)
+					}
 				}
 			} else {
 				let mut r = bullshit_to_200_ok("Missing password");
@@ -117,4 +155,48 @@ fn bullshit_to_200_ok(shit: impl Into<Bytes>) -> Response<BoxBody<Bytes, hyper::
 			.map_err(|n| match n {})
 			.boxed(),
 	)
+}
+
+// this may be the worst rust ive ever written
+fn parse_mac_address_from_query(mac: &str) -> Result<[u8; 6], &'static str> {
+
+
+
+	let re = Regex::new("mac=((?:[0-9a-f]{2}:){5}[0-9a-f]{2})").unwrap();
+
+	let caps = re.captures(mac);
+	if caps.is_some() && caps.as_ref().unwrap().get(1).is_some() {
+		let cap = caps.unwrap().get(1).unwrap();
+
+		let parts = mac[cap.range()].split(":")
+			.map(|part| {
+				let nested_result = hex::decode(part)
+					.map(|part| { part.get(0).cloned().ok_or("Invalid MAC address") });
+
+				nested_result.map_err(|_| "Invalid hex").and_then(|v| v)
+			});
+
+		// unwrap errors
+		let mut unwrapped = Vec::with_capacity(6);
+		let mut error = None;
+		for res in parts {
+			if let Ok(chunk) = res {
+				unwrapped.push(chunk);
+			}
+			else {
+				error = Some(res.unwrap_err());
+			}
+		}
+
+		if let Some(err) = error {
+			Err(err)
+		}
+		else if unwrapped.len() != 6 {
+			Err("wrong number of chunks in MAC")
+		} else {
+			Ok(unwrapped.first_chunk::<6>().unwrap().clone())
+		}
+	} else {
+		Err("Invalid MAC address format, /wake?mac=XX:XX:XX:XX:XX:XX")
+	}
 }

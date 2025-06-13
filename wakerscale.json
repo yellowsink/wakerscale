@@ -1,4 +1,6 @@
 {
+	"hostname": "milkzel-wakerscale",
+	"controlserver": "https://michiscale.yellows.ink",
 	"port": 80,
 	"passwords": [
 		"abcd1234"
