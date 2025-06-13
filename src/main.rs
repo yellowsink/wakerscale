@@ -115,6 +115,7 @@ async fn handle(
 									*r.status_mut() = StatusCode::INTERNAL_SERVER_ERROR;
 									Ok(r)
 								} else {
+									println!("waking {}", hex::encode(mac));
 									// 200 OK
 									Ok(bullshit_to_200_ok(""))
 								}
@@ -162,7 +163,7 @@ fn parse_mac_address_from_query(mac: &str) -> Result<[u8; 6], &'static str> {
 
 
 
-	let re = Regex::new("mac=((?:[0-9a-f]{2}:){5}[0-9a-f]{2})").unwrap();
+	let re = Regex::new("mac=((?:[0-9a-fA-F]{2}:){5}[0-9a-fA-F]{2})").unwrap();
 
 	let caps = re.captures(mac);
 	if caps.is_some() && caps.as_ref().unwrap().get(1).is_some() {
